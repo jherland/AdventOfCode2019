@@ -5,11 +5,11 @@ def masses():
 
 
 def fuel(mass):
-    return int(mass / 3) - 2
+    return max(0, int(mass / 3) - 2)
 
 
 def acc_fuel(mass):
-    f = max(0, fuel(mass))
+    f = fuel(mass)
     if f > 0:
         f += acc_fuel(f)
     return f
