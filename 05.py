@@ -2,79 +2,65 @@ from functools import partial
 from operator import add, eq, lt, mul, ne
 
 
-def args(nargs, nresults, memory, ip, param_modes):
-    args = memory[ip + 1:ip + 1 + nargs + nresults]
-    # Results are always addresses that we need to return (as if 'immediate')
-    modes = param_modes[:nargs] + ['imm'] * nresults
-    resolve_arg = {'pos': lambda arg: memory[arg], 'imm': lambda arg: arg}
-    return [resolve_arg[mode](arg) for arg, mode in zip(args, modes)]
+class Jump(Exception):
+    pass
 
 
-def binary_op(do_op, memory, ip, param_modes):
-    a, b, result = args(2, 1, memory, ip, param_modes)
-    memory[result] = do_op(a, b)
-    return ip + 4
+class End(StopIteration):
+    pass
 
 
-def do_input(memory, ip, param_modes):
-    addr, = args(0, 1, memory, ip, param_modes)
-    memory[addr] = memory.pop()  # input is passed through at end of memory
-    return ip + 2
+def conditional_jump(test, arg, target):
+    if test(arg):
+        raise Jump(target)
 
 
-def do_output(memory, ip, param_modes):
-    arg, = args(1, 0, memory, ip, param_modes)
-    print(arg)
-    return ip + 2
-
-
-def conditional_jump(predicate, memory, ip, param_modes):
-    condition, target = args(2, 0, memory, ip, param_modes)
-    return target if predicate(condition) else ip + 3
-
-
-def binary_test(predicate, memory, ip, param_modes):
-    a, b, result = args(2, 1, memory, ip, param_modes)
-    memory[result] = 1 if predicate(a, b) else 0
-    return ip + 4
-
-
-def end(memory, ip, param_modes):
-    raise StopIteration
+def end(memory):
+    raise End
 
 
 ops = {
-    1: partial(binary_op, add),
-    2: partial(binary_op, mul),
-    3: do_input,
-    4: do_output,
-    5: partial(conditional_jump, partial(ne, 0)),
-    6: partial(conditional_jump, partial(eq, 0)),
-    7: partial(binary_test, lt),
-    8: partial(binary_test, eq),
-    99: end,
+    1: (2, 1, add),
+    2: (2, 1, mul),
+    3: (0, 1, lambda memory: memory.pop()),
+    4: (1, 0, print),
+    5: (2, 0, partial(conditional_jump, partial(ne, 0))),
+    6: (2, 0, partial(conditional_jump, partial(eq, 0))),
+    7: (2, 1, lambda a, b: int(lt(a, b))),
+    8: (2, 1, lambda a, b: int(eq(a, b))),
+    99: (0, 0, end),
 }
 
 
-def decode(opcode):
-    modebits, op = divmod(opcode, 100)
-    modedecode = {'0': 'pos', '1': 'imm'}
-    return op, [modedecode[c] for c in '{:03d}'.format(modebits)[::-1]]
+def step(memory, ip):
+    modebits, op = divmod(memory[ip], 100)
+    num_args, store_result, call = ops[op]
+    if num_args:
+        param_values = memory[ip + 1:ip + 1 + num_args]
+        resolve_arg = {'0': lambda arg: memory[arg], '1': lambda arg: arg}
+        args = [
+            resolve_arg[mode](arg)
+            for arg, mode in zip(param_values, '{:03d}'.format(modebits)[::-1])
+        ]
+    else:
+        args = (memory, )
+    try:
+        result = call(*args)
+    except Jump as j:
+        return j.args[0]
+    if store_result:
+        memory[memory[ip + 1 + num_args]] = result
+    return ip + 1 + num_args + store_result
 
 
-def run(program, noun=None, verb=None, ip=0, input=None):
+def run(program, ip=0, input=None):
     memory = program[:]
     if input is not None:  # Pass through input at end of memory
         memory.append(input)
-    if noun is not None:
-        memory[1] = noun
-    if verb is not None:
-        memory[2] = verb
     try:
         while True:
-            op, param_modes = decode(memory[ip])
-            ip = ops[op](memory, ip, param_modes)
-    except StopIteration:
+            ip = step(memory, ip)
+    except End:
         return memory[0]
 
 
