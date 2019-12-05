@@ -25,13 +25,17 @@ def monoton_incr(seq):
     return all(a <= b for a, b in pairwise_items(seq))
 
 
+def apply_preds_to_digits(*preds):
+    return lambda n: all(pred(str(n)) for pred in preds)
+
+
 with open('04.input') as f:
     lo, hi = tuple(map(int, f.read().rstrip().split('-', 1)))
 
 # part 1
-part1 = lambda n: item_repeated(str(n)) and monoton_incr(str(n))
+part1 = apply_preds_to_digits(monoton_incr, item_repeated)
 print(len(list(filter(part1, range(lo, hi)))))
 
 # part 2
-part2 = lambda n: item_repeated_once(str(n)) and monoton_incr(str(n))
+part2 = apply_preds_to_digits(monoton_incr, item_repeated_once)
 print(len(list(filter(part2, range(lo, hi)))))

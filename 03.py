@@ -1,8 +1,8 @@
 def parse_move(s):
-    d, l = s[0], int(s[1:])
-    assert d in {'U', 'R', 'D', 'L'}
-    assert l >= 0
-    return d, l
+    direction, num_steps = s[0], int(s[1:])
+    assert direction in {'U', 'R', 'D', 'L'}
+    assert num_steps >= 0
+    return direction, num_steps
 
 
 def parse_wires(f):
