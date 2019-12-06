@@ -11,7 +11,7 @@ run() {
 }
 
 if test "$day" = "all"; then
-    for f in *.py; do
+    for f in ??.py; do
         run "$f"
     done
 elif test -f "$day.py"; then
