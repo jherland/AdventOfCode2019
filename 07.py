@@ -23,7 +23,7 @@ def run_amps_w_feedback(program, phase_setting):
     qs = [Queue() for _ in range(n)]  # Queue #i between amps #i-1 and #i
     for i, p in enumerate(phase_setting):
         qs[i].put(p)  # First input to each amp is phase
-    qs[0].put(0)  # The first amp take an additionl 0 as input
+    qs[0].put(0)  # The first amp take an additional 0 as input
     amps = [
         Process(target=run_amp, args=(program, qs[i].get, qs[(i + 1) % n].put))
         for i in range(n)
