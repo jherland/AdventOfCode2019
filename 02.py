@@ -1,19 +1,16 @@
 from itertools import product
 
-import intcode
+from intcode import IntCode
 
 with open('02.input') as f:
-    program = intcode.State.parse(f)
+    program = IntCode.from_file(f)
 
 # part 1
-state = program.clone(12, 2)
-print(intcode.run(state).memory[0])
+print(program.prepare(noun=12, verb=2).run().memory[0])
 
 # part 2
 target = 19690720
 for n, v in product(range(100), range(100)):
-    state = program.clone(n, v)
-    result = intcode.run(state).memory[0]
-    if result == target:
+    if program.prepare(noun=n, verb=v).run().memory[0] == target:
         break
 print(100 * n + v)

@@ -1,124 +1,132 @@
 from dataclasses import dataclass
 from functools import partial
 from operator import add, eq, lt, mul, ne
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 
 @dataclass
-class State:
+class IntCode:
     memory: List[int]
     ip: int = 0  # instruction pointer
     rb: int = 0  # relative base
-    input_: Callable[[], int] = lambda: int(input().rstrip())
-    output: Callable[[int], None] = print
+    do_input: Callable[[], int] = lambda: int(input('Input:').rstrip())
+    inputs: Optional[List[int]] = None
+    do_output: Callable[[int], None] = print
+    outputs: Optional[List[int]] = None
 
     @classmethod
-    def parse(cls, f):
+    def from_file(cls, f):
         return cls(list(map(int, f.read().split(','))))
 
-    def clone(self, noun=None, verb=None, ip=None, input_=None, output=print):
+    def prepare(self, inputs=None, outputs=None, noun=None, verb=None):
         memory = self.memory[:]
+        if inputs is None:
+            do_input = self.do_input
+            inputs = self.inputs
+        else:
+            if callable(inputs):
+                do_input = inputs
+                inputs = None
+            elif isinstance(inputs, list):
+                do_input = partial(inputs.pop, 0)
+            else:
+                raise NotImplementedError
+        if outputs is None:
+            do_output = self.do_output
+            outputs = self.outputs
+        else:
+            if callable(outputs):
+                do_output = outputs
+                outputs = None
+            elif isinstance(outputs, list):
+                do_output = outputs.append
+            else:
+                raise NotImplementedError
         if noun is not None:
             memory[1] = noun
         if verb is not None:
             memory[2] = verb
-        ip = self.ip if ip is None else ip
-        rb = self.rb
-        input_ = self.input_ if input_ is None else input_
-        output = self.output if output is None else output
-        return State(memory, ip, rb, input_, output)
+        return self.__class__(memory, self.ip, self.rb, do_input, inputs,
+                              do_output, outputs)
 
+    @staticmethod
+    def decode(opcode):
+        modebits, op = divmod(opcode, 100)
+        return op, [int(digit) for digit in '{:03d}'.format(modebits)[::-1]]
 
-def decode(opcode):
-    modebits, op = divmod(opcode, 100)  # mode bits: 0: position, 1: immediate
-    return op, [int(digit) for digit in '{:03d}'.format(modebits)[::-1]]
+    def load(self, address):
+        if address >= len(self.memory):  # extend memory if needed
+            self.memory += [0] * (address + 1 - len(self.memory))
+        return self.memory[address]
 
+    def store(self, address, value):
+        if address >= len(self.memory):  # extend memory if needed
+            self.memory += [0] * (address + 1 - len(self.memory))
+        self.memory[address] = value
 
-def load(state, address):
-    if address >= len(state.memory):
-        state.memory += [0] * (address + 1 - len(state.memory))
-    return state.memory[address]
+    def resolve_args(self, nargs, nresults, modes):
+        assert nargs + nresults <= len(modes)
+        decoders = {
+            ('in', 0): lambda arg: self.load(arg),  # positional mode
+            ('in', 1): lambda arg: arg,  # immediate mode
+            ('in', 2): lambda arg: self.load(self.rb + arg),  # relative mode
+            ('out', 0): lambda arg: arg,  # absolute address
+            ('out', 2): lambda arg: self.rb + arg,  # address relative to RB
+        }
+        dirs = ['in'] * nargs + ['out'] * nresults
+        args = self.memory[self.ip + 1:self.ip + 1 + nargs + nresults]
+        return [decoders[(d, m)](arg) for d, m, arg in zip(dirs, modes, args)]
 
+    def arithmetic_op(self, func, param_modes):
+        a, b, result = self.resolve_args(2, 1, param_modes)
+        self.store(result, func(a, b))
+        self.ip += 4
 
-def store(state, address, value):
-    if address >= len(state.memory):
-        state.memory += [0] * (address + 1 - len(state.memory))
-    state.memory[address] = value
+    def input_op(self, param_modes):
+        addr, = self.resolve_args(0, 1, param_modes)
+        self.store(addr, self.do_input())
+        self.ip += 2
 
+    def output_op(self, param_modes):
+        arg, = self.resolve_args(1, 0, param_modes)
+        self.do_output(arg)
+        self.ip += 2
 
-def args(nargs, nresults, state, param_modes):
-    args = state.memory[state.ip + 1:state.ip + 1 + nargs + nresults]
-    arg_decode = [
-        lambda arg: load(state, arg),  # positional mode
-        lambda arg: arg,  # immediate mode
-        lambda arg: load(state, state.rb + arg)  # relative mode
-    ]
-    # Results are either direct addresses (mode 0) or relative to RB (mode 2)
-    result_decode = [
-        lambda arg: arg, NotImplemented, lambda arg: state.rb + arg
-    ]
-    decoders = [arg_decode[m] for m in param_modes[:nargs]]
-    decoders += [result_decode[m] for m in param_modes[nargs:nargs + nresults]]
-    return [decoders[i](arg) for i, arg in enumerate(args)]
+    def jump_op(self, predicate, param_modes):
+        condition, target = self.resolve_args(2, 0, param_modes)
+        self.ip = target if predicate(condition) else self.ip + 3
 
+    def test_op(self, predicate, param_modes):
+        a, b, result = self.resolve_args(2, 1, param_modes)
+        self.store(result, 1 if predicate(a, b) else 0)
+        self.ip += 4
 
-def binary_op(do_op, state, param_modes):
-    a, b, result = args(2, 1, state, param_modes)
-    store(state, result, do_op(a, b))
-    return state.ip + 4
+    def adjust_rb_op(self, param_modes):
+        a, = self.resolve_args(1, 0, param_modes)
+        self.rb += a
+        self.ip += 2
 
+    @staticmethod
+    def halt_op(param_modes):
+        raise StopIteration
 
-def do_input(state, param_modes):
-    addr, = args(0, 1, state, param_modes)
-    store(state, addr, state.input_())
-    return state.ip + 2
-
-
-def do_output(state, param_modes):
-    arg, = args(1, 0, state, param_modes)
-    state.output(arg)
-    return state.ip + 2
-
-
-def conditional_jump(predicate, state, param_modes):
-    condition, target = args(2, 0, state, param_modes)
-    return target if predicate(condition) else state.ip + 3
-
-
-def binary_test(predicate, state, param_modes):
-    a, b, result = args(2, 1, state, param_modes)
-    store(state, result, 1 if predicate(a, b) else 0)
-    return state.ip + 4
-
-
-def adjust_relative_base(state, param_modes):
-    a, = args(1, 0, state, param_modes)
-    state.rb += a
-    return state.ip + 2
-
-
-def end(state, param_modes):
-    raise StopIteration
-
-
-ops = {
-    1: partial(binary_op, add),
-    2: partial(binary_op, mul),
-    3: do_input,
-    4: do_output,
-    5: partial(conditional_jump, partial(ne, 0)),
-    6: partial(conditional_jump, partial(eq, 0)),
-    7: partial(binary_test, lt),
-    8: partial(binary_test, eq),
-    9: adjust_relative_base,
-    99: end,
-}
-
-
-def run(state):
-    try:
-        while True:
-            op, param_modes = decode(state.memory[state.ip])
-            state.ip = ops[op](state, param_modes)
-    except StopIteration:
-        return state
+    def run(self, **kwargs):
+        ops = {
+            1: partial(self.arithmetic_op, add),
+            2: partial(self.arithmetic_op, mul),
+            3: self.input_op,
+            4: self.output_op,
+            5: partial(self.jump_op, partial(ne, 0)),
+            6: partial(self.jump_op, partial(eq, 0)),
+            7: partial(self.test_op, lt),
+            8: partial(self.test_op, eq),
+            9: self.adjust_rb_op,
+            99: self.halt_op,
+        }
+        try:
+            while True:
+                op, parameter_modes = self.decode(self.memory[self.ip])
+                ops[op](parameter_modes)
+        except StopIteration:
+            pass
+        return self

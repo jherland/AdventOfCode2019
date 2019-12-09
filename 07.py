@@ -1,20 +1,13 @@
 import itertools
 from multiprocessing import Process, Queue
 
-import intcode
-
-
-def run_amp(program, input_, output):
-    state = program.clone(input_=input_, output=output)
-    intcode.run(state)
+from intcode import IntCode
 
 
 def run_amps(program, phase_setting):
     n = 0
-    output = []
     for p in phase_setting:
-        run_amp(program, [p, n][::-1].pop, output.append)
-        n = output.pop()
+        n = program.prepare(inputs=[p, n], outputs=[]).run().outputs.pop()
     return n
 
 
@@ -25,7 +18,7 @@ def run_amps_w_feedback(program, phase_setting):
         qs[i].put(p)  # First input to each amp is phase
     qs[0].put(0)  # The first amp take an additional 0 as input
     amps = [
-        Process(target=run_amp, args=(program, qs[i].get, qs[(i + 1) % n].put))
+        Process(target=program.prepare(qs[i].get, qs[(i + 1) % n].put).run)
         for i in range(n)
     ]
     for amp in amps:
@@ -36,7 +29,7 @@ def run_amps_w_feedback(program, phase_setting):
 
 
 with open('07.input') as f:
-    program = intcode.State.parse(f)
+    program = IntCode.from_file(f)
 
 # part 1
 phase_permutations = itertools.permutations(list(range(5)), 5)

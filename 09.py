@@ -1,12 +1,10 @@
-import intcode
+from intcode import IntCode
 
 with open('09.input') as f:
-    program = intcode.State.parse(f)
+    program = IntCode.from_file(f)
 
 # part 1
-state = program.clone(input_=[1].pop)
-intcode.run(state)
+program.prepare(inputs=[1]).run()
 
 # part 2
-state = program.clone(input_=[2].pop)
-intcode.run(state)
+program.prepare(inputs=[2]).run()
