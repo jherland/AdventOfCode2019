@@ -55,8 +55,8 @@ class IntCode:
         return op, [int(digit) for digit in '{:03d}'.format(modebits)[::-1]]
 
     def load(self, address):
-        if address >= len(self.memory):  # extend memory if needed
-            self.memory += [0] * (address + 1 - len(self.memory))
+        if address >= len(self.memory):
+            return 0
         return self.memory[address]
 
     def store(self, address, value):
