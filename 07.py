@@ -1,5 +1,5 @@
 import itertools
-from multiprocessing import Process, Queue
+from multiprocessing import Queue
 
 from intcode import IntCode
 
@@ -18,11 +18,9 @@ def run_amps_w_feedback(program, phase_setting):
         qs[i].put(p)  # First input to each amp is phase
     qs[0].put(0)  # The first amp take an additional 0 as input
     amps = [
-        Process(target=program.prepare(qs[i].get, qs[(i + 1) % n].put).run)
+        program.start_in_subprocess(qs[i], qs[(i + 1) % n])[0]
         for i in range(n)
     ]
-    for amp in amps:
-        amp.start()
     for amp in amps:
         amp.join()
     return qs[0].get()

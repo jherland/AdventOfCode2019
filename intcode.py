@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import partial
+from multiprocessing import Process, Queue
 from operator import add, eq, lt, mul, ne
 from typing import Callable, List, Optional
 
@@ -110,7 +111,7 @@ class IntCode:
     def halt_op(param_modes):
         raise StopIteration
 
-    def run(self, **kwargs):
+    def run(self):
         ops = {
             1: partial(self.arithmetic_op, add),
             2: partial(self.arithmetic_op, mul),
@@ -130,3 +131,13 @@ class IntCode:
         except StopIteration:
             pass
         return self
+
+    def start_in_subprocess(self, in_q=None, out_q=None):
+        if in_q is None:
+            in_q = Queue()
+        if out_q is None:
+            out_q = Queue()
+        program = self.prepare(in_q.get, out_q.put)
+        proc = Process(target=program.run)
+        proc.start()
+        return proc, in_q, out_q
