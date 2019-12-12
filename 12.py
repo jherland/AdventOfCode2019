@@ -8,9 +8,6 @@ class Coord(NamedTuple):
     y: int = 0
     z: int = 0
 
-    def __str__(self):
-        return f'({self.x}, {self.y}, {self.z})'
-
     def __add__(self, other):
         return Coord(self.x + other.x, self.y + other.y, self.z + other.z)
 
@@ -28,9 +25,6 @@ class Moon:
         assert xyz[1].startswith('y=')
         assert xyz[2].startswith('z=')
         return cls(Coord(*[int(s[2:]) for s in xyz]))
-
-    def __str__(self):
-        return f'M[p={self.pos}, v={self.vel}]'
 
     def apply_gravity(self, others):
         delta = [0, 0, 0]
@@ -74,6 +68,10 @@ def step(moons):
     return moons
 
 
+def lcm(x, y):
+    return x * y // gcd(x, y)
+
+
 # part 1
 for i in range(1000):
     moons = step(moons)
@@ -87,7 +85,4 @@ while True:
     if new_seen == num_seen:
         break
     num_seen = new_seen
-periods = (len(x_seen), len(y_seen), len(z_seen))
-xyperiod = periods[0] * periods[1] // gcd(periods[0], periods[1])
-allperiod = xyperiod * periods[2] // gcd(xyperiod, periods[2])
-print(allperiod)
+print(lcm(lcm(len(x_seen), len(y_seen)), len(z_seen)))
