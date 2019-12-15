@@ -19,12 +19,7 @@ class IntCode:
     def from_file(cls, f):
         return cls(list(map(int, f.read().split(','))))
 
-    def prepare(self,
-                inputs=None,
-                outputs=None,
-                quarters=None,
-                noun=None,
-                verb=None):
+    def prepare(self, inputs=None, outputs=None, mem=None):
         memory = self.memory[:]
         if inputs is None:
             do_input = self.do_input
@@ -48,12 +43,9 @@ class IntCode:
                 do_output = outputs.append
             else:
                 raise NotImplementedError
-        if quarters is not None:
-            memory[0] = quarters
-        if noun is not None:
-            memory[1] = noun
-        if verb is not None:
-            memory[2] = verb
+        if mem is not None:
+            for addr, value in mem.items():
+                memory[addr] = value
         return self.__class__(memory, self.ip, self.rb, do_input, inputs,
                               do_output, outputs)
 

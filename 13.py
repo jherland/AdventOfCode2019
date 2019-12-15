@@ -67,5 +67,5 @@ print(sum(map(lambda t: t == 2, game.tiles.values())))
 
 # part 2
 game = Game()
-game.run(program.prepare(quarters=2), draw=False)
+game.run(program.prepare(mem={0: 2}), draw=False)
 print(game.score)
