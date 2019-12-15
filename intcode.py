@@ -89,8 +89,9 @@ class IntCode:
 
     def output_op(self, param_modes):
         arg, = self.resolve_args(1, 0, param_modes)
-        self.do_output(arg)
-        self.ip += 2
+        # self.do_output() may throw; a subsequent .run() should not repeat it.
+        self.ip += 2  # increment IP _first_
+        self.do_output(arg)  # _then_ call .do_output()
 
     def jump_op(self, predicate, param_modes):
         condition, target = self.resolve_args(2, 0, param_modes)
