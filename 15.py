@@ -23,17 +23,17 @@ def bbox(coords):
 def draw(world, droid, target):
     def pixel(coord):
         if coord == droid:
-            return '\u001b[33;1m¤\u001b[0m'
+            return '\u001b[33;1m()\u001b[0m'
         elif coord == target:
-            return '\u001b[31;1m*\u001b[0m'
+            return '\u001b[31;1m()\u001b[0m'
         elif coord not in world:  # unexplored
-            return ' '
+            return '  '
         elif world[coord] == Wall:
-            return '\u001b[30;1m░\u001b[0m'
+            return '\u001b[30;1m░░\u001b[0m'
         elif world[coord] == Open:
-            return '\u001b[34m█\u001b[0m'
+            return '\u001b[34m██\u001b[0m'
         elif world[coord] == Oxygen:
-            return '\u001b[34;1m█\u001b[0m'
+            return '\u001b[34;1m██\u001b[0m'
         else:
             raise NotImplementedError()
 
