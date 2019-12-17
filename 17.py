@@ -37,29 +37,6 @@ def adjacents(pos):
     yield pos + Left
 
 
-def pairwise(seq):
-    return zip(seq, seq[1:])
-
-
-def valid_plan(plan):
-    """Check if plan is valid"""
-    main, *subs = plan
-    if len(','.join(map(str, main))) > 20:
-        print(f'main is too long: {len(main)}')
-        return False
-    if set(main) - {'A', 'B', 'C'}:
-        print(f'main is not valid: {main}')
-        return False
-    for sub in subs:
-        if len(','.join(map(str, sub))) > 20:
-            print(f'sub is too long: {len(sub)}')
-            return False
-        if set(sub) - ({'L', 'R'} | set(range(1, 13))):
-            print(f'sub is not valid: {sub}')
-            return False
-    return True
-
-
 class ASCII:
     def __init__(self, program):
         self.program = program
@@ -113,97 +90,73 @@ class ASCII:
             if len(self.find_neighbors(pos)) == 4:
                 yield pos
 
-    def follow(self, start):
-        pos, dir = start
-        yield start
-        been = set()  # where we've already been
+    def find_path(self):
+        """Find series of L/R/$num moves to visit all of self.scaffold."""
+        pos, dir = self.robot
+        been = set()  # where we've already visited
+        run = 0  # current number of straigh-ahead moves
         while True:
             been.add(pos)
-            next_pos = pos + dir  # try to keep going in same direction
-            if next_pos not in self.scaffold:  # oops, must turn
+            if pos + dir in self.scaffold:  # keep going in same direction?
+                run += 1
+                pos += dir
+            else:  # must turn
+                if run:
+                    yield run
+                    run = 0
                 neighbors = self.find_neighbors(pos) - been
                 assert len(neighbors) <= 1
-                if not neighbors:  # nowhere left to go
-                    break
-                next_pos = neighbors.pop()
-                dir = next_pos - pos
-            pos = next_pos
-            yield pos, dir
-
-    def moves(self):
-        """Yield L/R/# moves for traversing the scaffolding."""
-        run = 0
-        traversal = list(self.follow(self.robot))
-        for (ppos, pdir), (cpos, cdir) in pairwise(traversal):
-            if pdir == cdir:  # keep going in same direction:
-                run += 1
-            else:
-                if run:
-                    yield str(run)
-                run = 1
-                # turn left or right?
-                if cdir == turn_left(pdir):
+                if pos + turn_left(dir) in neighbors:
                     yield 'L'
-                else:
-                    assert cdir == turn_right(pdir)
+                    dir = turn_left(dir)
+                elif pos + turn_right(dir) in neighbors:
                     yield 'R'
-        yield str(run)
+                    dir = turn_right(dir)
+                else:  # nowhere left to go
+                    break
 
-    def traverse(self, plan):
-        assert valid_plan(plan)
-        planstr = '\n'.join(','.join(map(str, p)) for p in plan) + '\nn\n'
-        inputs = [ord(c) for c in planstr]
+    def execute(self, plan):
+        inputs = [ord(c) for c in '\n'.join(plan) + '\nn\n']
         return self.program.prepare(inputs, [], mem={0: 2}).run().outputs.pop()
 
-    def score_plan(self, plan):
-        """Yield (pos, direction) we've followed the entire scaffold."""
-        if not valid_plan(plan):
-            return 9999
-        pos, dir = self.robot
-        uncovered = self.scaffold - {self.robot[0]}
-        main, *subs = plan
-        for name in main:
-            sub = subs[{'A': 0, 'B': 1, 'C': 2}[name]]
-            #  print(f' main: {name}: {sub}')
-            for instr in sub:
-                #  print(f'  sub: {instr}')
-                if instr == 'L':
-                    dir = turn_left(dir)
-                elif instr == 'R':
-                    dir = turn_right(dir)
-                else:
-                    assert isinstance(instr, int)
-                    while instr > 0:
-                        pos += dir
-                        instr -= 1
-                        if pos in self.scaffold:
-                            uncovered -= {pos}
-                        else:
-                            self.robot = pos, dir
-                            return 1000 + len(uncovered)
-        self.robot = pos, dir
-        return len(uncovered)
+
+def find_repeated_prefixes(s):
+    for n in itertools.count(1):
+        if not s[:n] in s[n:]:
+            break
+    while n > 0:
+        n -= 1
+        yield s[:n]
 
 
-def main_routines():
-    """All possible main routines."""
-    actions = ['A', 'B', 'C']
-    for n in reversed(range(11)):
-        yield from itertools.combinations_with_replacement(actions, n)
-
-
-def sub_routines():
-    actions = ['L', 'R', 2, 4, 6, 8, 10, 12]
-    for n in range(3, 11):
-        yield from itertools.combinations_with_replacement(actions, n)
-
-
-def plans():
-    pass
-
-
-def count(iter):
-    return sum(1 for _ in iter)
+def find_plan(path):
+    for a in find_repeated_prefixes(path):
+        if not a.endswith(','):
+            continue
+        apath = path.replace(a, 'A,')
+        #  print(f'a = {a}, apath = {apath}')
+        for b in find_repeated_prefixes(apath.lstrip('A,')):
+            if not b.endswith(','):
+                continue
+            bpath = apath.replace(b, 'B,')
+            #  print(f'  b = {b}, bpath = {bpath}')
+            for c in find_repeated_prefixes(bpath.lstrip('A,B')):
+                if not c.endswith(','):
+                    continue
+                cpath = bpath.replace(c, 'C,')
+                #  print(f'    c = {c}, cpath = {cpath}')
+                conditions = [
+                    len(cpath.rstrip(',')) <= 20,
+                    not (set(cpath) - set('ABC,')),
+                    len(a.rstrip(',')) <= 20,
+                    not (set(a) & set('ABC')),
+                    len(b.rstrip(',')) <= 20,
+                    not (set(b) & set('ABC')),
+                    len(c.rstrip(',')) <= 20,
+                    not (set(c) & set('ABC')),
+                ]
+                if all(conditions):
+                    return [s.rstrip(',') for s in [cpath, a, b, c]]
 
 
 with open('17.input') as f:
@@ -215,12 +168,6 @@ a = ASCII(program)
 print(sum(pos.x * pos.y for pos in a.find_crossings()))
 
 # part 2
-plan = [
-    ['A', 'B', 'A', 'A', 'B', 'C', 'B', 'C', 'C', 'B'],
-    ['L', 12, 'R', 8, 'L', 6, 'R', 8, 'L', 6],
-    ['R', 8, 'L', 12, 'L', 12, 'R', 8],
-    ['L', 6, 'R', 6, 'L', 12],
-]
-score = a.score_plan(plan)
-assert score == 0
-print(a.traverse(plan))
+path = ','.join(map(str, a.find_path())) + ','
+plan = find_plan(path)
+print(a.execute(plan))
