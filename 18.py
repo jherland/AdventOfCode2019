@@ -16,7 +16,7 @@ class Coord(NamedTuple):
 
     def __floordiv__(self, denom):
         assert isinstance(denom, int)
-        return Coord(self.x // 2, self.y // 2)
+        return Coord(self.x // denom, self.y // denom)
 
 
 Up = Coord(0, -1)
