@@ -188,7 +188,7 @@ with open('18.input') as f:
 # part 1
 # vault.draw()
 vault.calculate_all_paths()
-print(vault.held_karp(vault.entrances.pop(), vault.keys, vault.doors))
+print(vault.held_karp(next(iter(vault.entrances)), vault.keys, vault.doors))
 
 # part 2
 pos = vault.entrances.pop()
