@@ -27,7 +27,7 @@ class Coord(NamedTuple):
 
 def tractor_beam(pos):
     if pos not in pulled:
-        pulled[pos] = program.prepare(list(pos), []).run().outputs.pop() == 1
+        pulled[pos] = program.setup(list(pos), []).run().outputs.pop() == 1
     return pulled[pos]
 
 

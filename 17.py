@@ -44,7 +44,7 @@ class ASCII:
         self.robot = (None, None)  # (position, direction)
         self.pos = Coord(0, 0)
 
-        self.program.prepare(outputs=self._buildmap).run()
+        self.program.setup(outputs=self._buildmap).run()
 
     def _drawmap(self, c):
         print(chr(c), end='')
@@ -117,7 +117,7 @@ class ASCII:
 
     def execute(self, plan):
         inputs = [ord(c) for c in '\n'.join(plan) + '\nn\n']
-        return self.program.prepare(inputs, [], mem={0: 2}).run().outputs.pop()
+        return self.program.setup(inputs, [], mem={0: 2}).run().outputs.pop()
 
 
 def find_repeated_prefixes(s):

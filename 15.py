@@ -101,7 +101,7 @@ class Explorer:
                 raise FoundTarget(self.target)
 
     def explore(self, program):
-        p = program.prepare(inputs=self.next_step, outputs=self.next_result)
+        p = program.setup(inputs=self.next_step, outputs=self.next_result)
         try:
             p.run()  # explore to find target
         except FoundTarget:

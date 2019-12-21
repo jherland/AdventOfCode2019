@@ -19,7 +19,7 @@ class IntCode:
     def from_file(cls, f):
         return cls(list(map(int, f.read().split(','))))
 
-    def prepare(self, inputs=None, outputs=None, mem=None):
+    def setup(self, inputs=None, outputs=None, mem=None):
         memory = self.memory[:]
         if inputs is None:
             do_input = self.do_input
@@ -137,7 +137,7 @@ class IntCode:
             in_q = Queue()
         if out_q is None:
             out_q = Queue()
-        program = self.prepare(in_q.get, out_q.put)
+        program = self.setup(in_q.get, out_q.put)
         proc = Process(target=program.run)
         proc.start()
         return proc, in_q, out_q

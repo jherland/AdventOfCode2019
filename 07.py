@@ -7,7 +7,7 @@ from intcode import IntCode
 def run_amps(program, phase_setting):
     n = 0
     for p in phase_setting:
-        n = program.prepare(inputs=[p, n], outputs=[]).run().outputs.pop()
+        n = program.setup(inputs=[p, n], outputs=[]).run().outputs.pop()
     return n
 
 

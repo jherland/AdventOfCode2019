@@ -54,7 +54,7 @@ class Game:
             return 0
 
     def run(self, program, draw=True):
-        program.prepare(partial(self.interact, draw), self.buffer).run()
+        program.setup(partial(self.interact, draw), self.buffer).run()
 
 
 with open('13.input') as f:
@@ -67,5 +67,5 @@ print(sum(map(lambda t: t == 2, game.tiles.values())))
 
 # part 2
 game = Game()
-game.run(program.prepare(mem={0: 2}), draw=False)
+game.run(program.setup(mem={0: 2}), draw=False)
 print(game.score)
