@@ -1,8 +1,20 @@
 from dataclasses import dataclass
 from functools import partial
+from itertools import chain
 from multiprocessing import Process, Queue
 from operator import add, eq, lt, mul, ne
 from typing import Callable, List, Optional
+
+
+def convert_ascii_line(line):
+    assert not line.endswith('\n')
+    return [ord(c) for c in line + '\n']
+
+
+def consume_ascii(buffer, get_ascii_line):
+    if not buffer:
+        buffer = convert_ascii_line(get_ascii_line())
+    return buffer.pop(0)
 
 
 @dataclass
@@ -19,9 +31,18 @@ class IntCode:
     def from_file(cls, f):
         return cls(list(map(int, f.read().split(','))))
 
-    def setup(self, inputs=None, outputs=None, mem=None):
+    def setup(self, inputs=None, outputs=None, mem=None, ascii=None):
         memory = self.memory[:]
-        if inputs is None:
+        if ascii is not None:  # Take lines of ASCII and convert to input
+            assert inputs is None
+            if callable(ascii):
+                inputs = []
+                do_input = partial(consume_ascii, inputs, ascii)
+            elif isinstance(ascii, list):
+                inputs = chain.from_iterable(
+                    convert_ascii_line(line) for line in ascii)
+                do_input = partial(next, inputs)
+        elif inputs is None:
             do_input = self.do_input
             inputs = self.inputs
         else:

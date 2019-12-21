@@ -116,8 +116,10 @@ class ASCII:
                     break
 
     def execute(self, plan):
-        inputs = [ord(c) for c in '\n'.join(plan) + '\nn\n']
-        return self.program.setup(inputs, [], mem={0: 2}).run().outputs.pop()
+        lines = plan + ['n']
+        output = []
+        self.program.setup(ascii=lines, outputs=output, mem={0: 2}).run()
+        return output.pop()
 
 
 def find_repeated_prefixes(s):
