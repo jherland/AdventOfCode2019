@@ -11,12 +11,6 @@ def convert_ascii_line(line):
     return [ord(c) for c in line + '\n']
 
 
-def consume_ascii(buffer, get_ascii_line):
-    if not buffer:
-        buffer = convert_ascii_line(get_ascii_line())
-    return buffer.pop(0)
-
-
 @dataclass
 class IntCode:
     memory: List[int]
@@ -31,13 +25,18 @@ class IntCode:
     def from_file(cls, f):
         return cls(list(map(int, f.read().split(','))))
 
+    def _consume_ascii(self, get_ascii_line):
+        if not self.inputs:
+            self.inputs = convert_ascii_line(get_ascii_line())
+        return self.inputs.pop(0)
+
     def setup(self, inputs=None, outputs=None, mem=None, ascii=None):
         memory = self.memory[:]
         if ascii is not None:  # Take lines of ASCII and convert to input
             assert inputs is None
             if callable(ascii):
                 inputs = []
-                do_input = partial(consume_ascii, inputs, ascii)
+                do_input = partial(self._consume_ascii, ascii)
             elif isinstance(ascii, list):
                 inputs = chain.from_iterable(
                     convert_ascii_line(line) for line in ascii)
